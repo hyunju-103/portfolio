@@ -19,23 +19,18 @@
     .panel { border: 1px solid #eee; border-radius: 12px; padding: 12px; }
     .panel h2 { margin: 0 0 10px 0; font-size: 14px; }
     label { display: block; font-size: 13px; margin: 8px 0 4px; color: #333; }
-    input[type="text"], input[type="number"], textarea {
+    input[type="text"], input[type="number"] {
       width: 100%; box-sizing: border-box; padding: 8px 10px; border: 1px solid #ddd; border-radius: 10px; outline: none;
     }
-    textarea { height: 120px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .checks { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
     .checks label { display: inline-flex; gap: 6px; margin: 0; }
-    button {
-      padding: 9px 10px; border-radius: 10px; border: 1px solid #ddd; background: #fff; cursor: pointer;
-    }
-    button:hover { background: #fafafa; }
     details { border: 1px dashed #ddd; border-radius: 10px; padding: 8px 10px; margin-top: 10px; }
     summary { cursor: pointer; font-size: 13px; color: #333; }
     #plot { height: 820px; }
     .hint { font-size: 12px; color: #666; margin-top: 6px; line-height: 1.35; }
     .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; background: #f4f4f4; color: #333; }
-    .foot { margin-top: 10px; font-size: 12px; color: #666; }
+    .foot { margin-top: 10px; font-size: 12px; color: #666; line-height: 1.35; }
     @media (max-width: 1100px){
       .wrap { grid-template-columns: 1fr; }
       #plot { height: 720px; }
@@ -52,24 +47,11 @@
   <div class="wrap">
     <!-- Control panel -->
     <div class="panel">
-      <h2>데이터 입력</h2>
-
-      <label>CSV 파일 업로드</label>
-      <input id="fileInput" type="file" accept=".csv,text/csv" />
-
-      <div class="hint">업로드가 어려우면 아래에 CSV 내용을 그대로 붙여넣고 “렌더링”을 누르면 돼.</div>
-
-      <label>CSV 텍스트 붙여넣기</label>
-      <textarea id="csvText" placeholder="word,status,sample_count,range1_mean,range1_std,range1_count,range2_mean, ...&#10;출산,success,12387,0.01995,..."></textarea>
-
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button id="renderBtn">렌더링</button>
-        <button id="resetBtn">초기화</button>
-      </div>
-
-      <hr style="border:none; border-top:1px solid #eee; margin:14px 0;" />
-
       <h2>필터</h2>
+
+      <div class="hint">
+        이 페이지는 <b>data.csv</b>를 자동으로 불러옵니다. (index.html과 같은 폴더에 두세요)
+      </div>
 
       <label>미시/거시 선택</label>
       <div class="checks">
@@ -130,7 +112,8 @@
       </details>
 
       <div class="foot">
-        분류 규칙: <b>range3_mean ≥ 0 → 거시(Macro, 빨강)</b>, <b>range3_mean &lt; 0 → 미시(Micro, 파랑)</b>
+        분류 규칙: <b>range3_mean ≥ 0 → 거시(Macro, 빨강)</b>, <b>range3_mean &lt; 0 → 미시(Micro, 파랑)</b><br/>
+        축 정의: x = (range2_mean - range1_mean), y = (range3_mean - range2_mean)
       </div>
     </div>
 
@@ -141,24 +124,27 @@
   </div>
 
 <script>
-  // -----------------------------
-  // State
-  // -----------------------------
-  let rawRows = [];      // original parsed
-  let cleanRows = [];    // processed with d1/d2/group
+  // =============================
+  // 0) 설정: 같은 폴더에 둔 CSV 파일명
+  // =============================
+  const CSV_PATH = "./data.csv";
+
+  // =============================
+  // 1) 상태
+  // =============================
+  let cleanRows = [];
 
   const el = (id) => document.getElementById(id);
 
-  // -----------------------------
-  // Helpers
-  // -----------------------------
+  // =============================
+  // 2) 유틸
+  // =============================
   function toNum(v){
     const x = (v === null || v === undefined) ? NaN : Number(v);
     return Number.isFinite(x) ? x : NaN;
   }
 
   function prepare(rows){
-    // require: word, range1_mean, range2_mean, range3_mean
     const out = [];
     for (const r of rows){
       const word = (r.word ?? "").toString().trim();
@@ -171,7 +157,8 @@
       const d2 = r3 - r2; // After - During
       const group = (r3 >= 0) ? "거시(Macro)" : "미시(Micro)";
 
-      const sampleCount = Number.isFinite(toNum(r.sample_count)) ? toNum(r.sample_count) : null;
+      const sc = toNum(r.sample_count);
+      const sampleCount = Number.isFinite(sc) ? sc : null;
 
       out.push({
         word, d1, d2, group,
@@ -201,7 +188,6 @@
     });
 
     el("countBadge").textContent = `${df.length}개`;
-
     return df;
   }
 
@@ -214,7 +200,6 @@
     const yMin = Math.min(...d2s), yMax = Math.max(...d2s);
     const xMin = Math.min(...d1s), xMax = Math.max(...d1s);
 
-    // fill inputs (only if empty)
     if (el("yMin").value === "") el("yMin").value = yMin;
     if (el("yMax").value === "") el("yMax").value = yMax;
     if (el("xMin").value === "") el("xMin").value = xMin;
@@ -227,26 +212,8 @@
 
     const showLabels = el("showLabels").checked;
 
-    // split traces by group to lock colors
     const micro = df.filter(d => d.group === "미시(Micro)");
     const macro = df.filter(d => d.group === "거시(Macro)");
-
-    const traceMicro = {
-      type: "scatter",
-      mode: showLabels ? "markers+text" : "markers",
-      name: "미시(Micro)",
-      x: micro.map(d => d.d1),
-      y: micro.map(d => d.d2),
-      text: micro.map(d => d.word),
-      textposition: "top center",
-      marker: { color: "blue", size: 10, opacity: 0.85 },
-      hovertemplate:
-        "<b>%{text}</b><br>" +
-        "group: 미시(Micro)<br>" +
-        "d1 (range2-range1): %{x:.6f}<br>" +
-        "d2 (range3-range2): %{y:.6f}<br>" +
-        "<extra></extra>"
-    };
 
     const traceMacro = {
       type: "scatter",
@@ -265,7 +232,23 @@
         "<extra></extra>"
     };
 
-    // axis settings
+    const traceMicro = {
+      type: "scatter",
+      mode: showLabels ? "markers+text" : "markers",
+      name: "미시(Micro)",
+      x: micro.map(d => d.d1),
+      y: micro.map(d => d.d2),
+      text: micro.map(d => d.word),
+      textposition: "top center",
+      marker: { color: "blue", size: 10, opacity: 0.85 },
+      hovertemplate:
+        "<b>%{text}</b><br>" +
+        "group: 미시(Micro)<br>" +
+        "d1 (range2-range1): %{x:.6f}<br>" +
+        "d2 (range3-range2): %{y:.6f}<br>" +
+        "<extra></extra>"
+    };
+
     const yAuto = el("yAuto").checked;
     const xAuto = el("xAuto").checked;
     const yZero = el("yZero").checked;
@@ -291,84 +274,46 @@
       hovermode: "closest"
     };
 
-    const config = { responsive: true, displaylogo: false };
-
-    Plotly.newPlot("plot", [traceMacro, traceMicro], layout, config);
+    Plotly.newPlot("plot", [traceMacro, traceMicro], layout, { responsive: true, displaylogo: false });
   }
 
-  function parseCSVText(text){
-    return new Promise((resolve, reject) => {
-      Papa.parse(text, {
-        header: true,
-        skipEmptyLines: true,
-        complete: (res) => resolve(res.data),
-        error: (err) => reject(err)
-      });
+  async function loadCSV(){
+    // fetch로 불러오기
+    const res = await fetch(CSV_PATH, { cache: "no-store" });
+    if (!res.ok) {
+      const msg = `CSV 로드 실패: ${CSV_PATH} (HTTP ${res.status})`;
+      Plotly.newPlot("plot", [], { title: { text: msg, x: 0.02 }, height: 600 }, { responsive: true });
+      return;
+    }
+    const text = await res.text();
+
+    Papa.parse(text, {
+      header: true,
+      skipEmptyLines: true,
+      complete: (parsed) => {
+        cleanRows = prepare(parsed.data);
+        render();
+      }
     });
   }
 
-  // -----------------------------
-  // Events
-  // -----------------------------
-  el("renderBtn").addEventListener("click", () => render());
-
-  el("resetBtn").addEventListener("click", () => {
-    el("csvText").value = "";
-    el("searchWord").value = "";
-    el("minCount").value = 0;
-    el("chkMicro").checked = true;
-    el("chkMacro").checked = true;
-    el("showLabels").checked = true;
-    el("yAuto").checked = true;
-    el("xAuto").checked = true;
-    el("yZero").checked = true;
-    el("xZero").checked = true;
-    el("yMin").value = "";
-    el("yMax").value = "";
-    el("xMin").value = "";
-    el("xMax").value = "";
-    rawRows = [];
-    cleanRows = [];
-    el("countBadge").textContent = "0개";
-    Plotly.purge("plot");
-  });
-
-  // reactive re-render on controls
+  // 컨트롤 변경 시 자동 렌더
   ["chkMicro","chkMacro","searchWord","minCount","showLabels","yAuto","yZero","yMin","yMax","xAuto","xZero","xMin","xMax"]
     .forEach(id => el(id).addEventListener("input", () => {
       if (cleanRows.length) render();
     }));
 
-  // file upload
-  el("fileInput").addEventListener("change", async (evt) => {
-    const file = evt.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    el("csvText").value = text;
-    const rows = await parseCSVText(text);
-    rawRows = rows;
-    cleanRows = prepare(rows);
-    render();
-  });
-
-  // initial blank plot placeholder
+  // 초기 placeholder
   Plotly.newPlot("plot", [], {
-    title: { text: "CSV를 업로드하거나 붙여넣고 렌더링을 누르세요", x: 0.02 },
+    title: { text: "data.csv를 불러오는 중...", x: 0.02 },
     xaxis: { title: "d1: During - Before (코로나 충격)" },
     yaxis: { title: "d2: After - During (코로나 회복)" },
+    height: 600,
     margin: { l: 60, r: 30, t: 70, b: 60 },
-    height: 820
   }, { responsive: true, displaylogo: false });
 
-  // also allow paste-then-render without file
-  el("renderBtn").addEventListener("click", async () => {
-    const text = el("csvText").value.trim();
-    if (!text) return;
-    const rows = await parseCSVText(text);
-    rawRows = rows;
-    cleanRows = prepare(rows);
-    render();
-  });
+  // 페이지 로드 시 자동 로드
+  loadCSV();
 </script>
 </body>
 </html>
