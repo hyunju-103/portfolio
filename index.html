@@ -112,7 +112,7 @@
       </details>
 
       <div class="foot">
-        분류 규칙: <b>range3_mean ≥ 0 → 거시(Macro, 빨강)</b>, <b>range3_mean &lt; 0 → 미시(Micro, 파랑)</b><br/>
+        분류 규칙: <b>(range1_mean + range2_mean + range3_mean)/3 ≥ 0 → 거시(Macro, 빨강)</b>, <b>(range1_mean + range2_mean + range3_mean)/3 &lt; 0 → 미시(Micro, 파랑)</b><br/>
         축 정의: x = (range2_mean - range1_mean), y = (range3_mean - range2_mean)
       </div>
     </div>
@@ -317,5 +317,6 @@
 </script>
 </body>
 </html>
+
 
 
