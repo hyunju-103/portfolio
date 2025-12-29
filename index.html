@@ -257,13 +257,13 @@
     const layout = {
       title: { text: "출산 관련 키워드의 코로나 충격 및 회복 패턴", x: 0.02 },
       xaxis: {
-        title: "d1: During - Before (코로나 충격) = range2_mean - range1_mean",
+        title: "d1: During - Before (코로나 충격)",
         zeroline: xZero,
         zerolinewidth: 2,
         range: xAuto ? undefined : [toNum(el("xMin").value), toNum(el("xMax").value)]
       },
       yaxis: {
-        title: "d2: After - During (코로나 회복) = range3_mean - range2_mean",
+        title: "d2: After - During (코로나 회복)",
         zeroline: yZero,
         zerolinewidth: 2,
         range: yAuto ? undefined : [toNum(el("yMin").value), toNum(el("yMax").value)]
@@ -317,6 +317,7 @@
 </script>
 </body>
 </html>
+
 
 
 
